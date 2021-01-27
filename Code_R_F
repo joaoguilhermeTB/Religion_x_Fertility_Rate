@@ -1,0 +1,182 @@
+import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import scipy as sci
+from pandas.plotting import table
+
+pd.set_option('display.max_rows',None)
+
+#####Data about religion
+path = 'C:\\my\\local\\files\\'
+df = pd.read_csv(path + 'WRP national data.csv')
+df = df.loc[(df['name'] == 'USA') | (df['name'] == 'BRA'),:]
+df.set_index('year',inplace=True)
+
+#i=0
+#exc = []
+#for c in df.columns:
+#	print(c,i)
+#	i+=1
+
+###Selecting columns in religion dataframe
+df = df.iloc[:,[1,38,39,40,41,42,43,44,72]]
+df['Protestant'] = (df['chrstprotpct'] + df['chrstangpct'] + df['chrstothrpct']) * 100
+df['Catholic'] = df['chrstcatpct'] * 100
+df['Not Religious'] = df['nonreligpct'] * 100
+df.drop(labels=['chrstprotpct','chrstangpct','chrstothrpct','pop','chrstorthpct','chrstgenpct','chrstcatpct','nonreligpct'],axis=1,inplace=True)
+
+######################Data about fertility
+df_fert = pd.read_csv(path+'fertility-rate-complete-gapminder.csv')
+df_fert = df_fert.loc[(df_fert['Code'] == 'USA') | (df_fert['Code'] == 'BRA'),:]
+df_fert = df_fert.iloc[:,[1,2,3]]
+df_fert = df_fert.loc[(df_fert['Year'] >= 1945) & (df_fert['Year'] <= 2010)]
+df_fert.set_index('Year',inplace=True)
+df_fert['Fert'] = df_fert['Fertility rate (Complete Gapminder, v12) (2017)']
+df_fert.drop('Fertility rate (Complete Gapminder, v12) (2017)',axis=1,inplace=True)
+
+########################Selecting Brazil and USA
+df_USA = df.loc[df['name'] == 'USA']
+df_BRA = df.loc[df['name'] == 'BRA']
+df_USA.drop('name',axis=1,inplace=True)
+df_BRA.drop('name',axis=1,inplace=True)
+
+
+df_fert_USA = df_fert.loc[df_fert['Code'] == 'USA',:]
+df_fert_BRA = df_fert.loc[df_fert['Code'] == 'BRA',:]
+df_fert_USA.drop('Code',axis=1,inplace=True)
+df_fert_BRA.drop('Code',axis=1,inplace=True)
+
+###########################Merging dataframes
+df_USA = pd.merge(df_USA, df_fert_USA, how='inner',left_index=True,right_index=True)
+df_BRA = pd.merge(df_BRA, df_fert_BRA, how='inner',left_index=True,right_index=True)
+
+#######################Labels in legend
+prot_usa = mlines.Line2D([], [], color='#e30b0b', marker='', ls='dashed', label='Protestant USA')
+cat_usa = mlines.Line2D([], [], color='#e30b0b', marker='', ls='solid', label='Catholic USA')
+non_usa = mlines.Line2D([], [], color='#e30b0b', marker='', ls='dotted', label='Not Religious USA')
+prot_bra = mlines.Line2D([], [], color='#17ad3f', marker='', ls='dashed', label='Protestant BRA')
+cat_bra = mlines.Line2D([], [], color='#17ad3f', marker='', ls='solid', label='Catholic BRA')
+non_bra = mlines.Line2D([], [], color='#17ad3f', marker='', ls='dotted', label='Not Religious BRA')
+
+#######################################Plot about religion data USA
+plt.subplot(2,2,1)
+ax = plt.gca()
+ax.axis([1945,2010,0,100])
+plt.ylabel('% Adherentes ')
+plt.xlabel('Year')
+plt.title('United States')
+plt.plot(df_USA.index,df_USA['Catholic'],'-',color='#e30b0b')
+plt.plot(df_USA.index,df_USA['Protestant'],'--',color='#e30b0b')
+plt.plot(df_USA.index,df_USA['Not Religious'],':',color='#e30b0b')
+plt.legend(handles=[prot_usa,cat_usa,non_usa],loc='upper left')
+
+#######################################Plot about religion data BRA
+plt.subplot(2,2,2)
+ax = plt.gca()
+ax.axis([1945,2010,0,100])
+plt.title('Brazil')
+plt.ylabel('% Adherentes ')
+plt.xlabel('Year')
+ax.yaxis.tick_right()
+ax.yaxis.set_label_position("right")
+plt.plot(df_BRA.index,df_BRA['Catholic'],'-',color='#17ad3f')
+plt.plot(df_BRA.index,df_BRA['Protestant'],'--',color='#17ad3f')
+plt.plot(df_BRA.index,df_BRA['Not Religious'],':',color='#17ad3f')
+plt.legend(handles=[prot_bra,cat_bra,non_bra],loc='center left')
+
+#######################################Plot about fertility data USA
+plt.subplot(2,2,3)
+ax = plt.gca()
+ax.axis([1945,2010,0,7])
+plt.ylabel('Fertility rate')
+plt.xlabel('Year')
+plt.plot(df_USA.index,df_USA['Fert'],'-',color='#e30b0b')
+ax.yaxis.tick_left()
+ax.yaxis.set_label_position("left")
+
+#######################################Plot about fertility BRA
+plt.subplot(2,2,4)
+ax = plt.gca()
+ax.axis([1945,2010,0,7])
+plt.ylabel('Fertility rate')
+plt.xlabel('Year')
+ax.yaxis.tick_right()
+ax.yaxis.set_label_position("right")
+plt.plot(df_BRA.index,df_BRA['Fert'],'-',color='#17ad3f')
+#######################################
+plt.show()
+
+plt.clf()
+
+###################################correlation matrix for df_BRA
+f_dict_cor = {}
+for c1 in df_BRA.columns:
+	cor_bra_l = []
+	for c2 in df_BRA.columns:
+		cor = sci.stats.pearsonr(x = df_BRA[c1],y = df_BRA[c2])
+		#print(c1,c2,cor)
+		cor_bra_l.append(round(cor[0],4)) 
+	f_dict_cor[c1] = cor_bra_l
+
+bra_cor = pd.DataFrame(f_dict_cor,index=['Protestant','Catholic','Not Religious','Fert'])
+
+###################################correlation matrix for df_USA
+f_dict_cor = {}
+for c1 in df_USA.columns:
+	cor_usa_l = []
+	for c2 in df_USA.columns:
+		cor = sci.stats.pearsonr(x = df_USA[c1],y = df_USA[c2])
+		#print(c1,c2,cor)
+		cor_usa_l.append(round(cor[0],4)) 
+	f_dict_cor[c1] = cor_usa_l
+
+usa_cor = pd.DataFrame(f_dict_cor,index=['Protestant','Catholic','Not Religious','Fert'])
+
+
+###################################plotting correlation matrix for df_USA
+ax = plt.subplot(1,2,1)
+im = plt.imshow(usa_cor,cmap='coolwarm',vmin=-1,vmax=1)
+ax.set_xticks(np.arange(4))
+ax.set_yticks(np.arange(4))
+ax.set_xticklabels(['P','C','N','F'],fontdict={'fontsize':12})
+ax.set_yticklabels(['P','C','N','F'],fontdict={'fontsize':12})
+plt.setp(ax.get_xticklabels(), ha="right")
+plt.colorbar(shrink=0.75,label='Correlation Index',orientation='horizontal')
+ax.set_title('United States')
+
+ic = -1
+for i in usa_cor.columns:
+	ic +=1
+	jc = 0
+	for j in usa_cor.index:
+		#print(i,j,ic,jc)
+		text = ax.text(jc, ic, round(usa_cor[i][j],2), ha="center", va="center", color="black",size=12)
+		jc +=1
+    	
+###################################plotting correlation matrix for df_BRA
+ax = plt.subplot(1,2,2)
+im = plt.imshow(bra_cor,cmap='coolwarm',vmin=-1,vmax=1)
+ax.set_xticks(np.arange(4))
+ax.set_yticks(np.arange(4))
+ax.set_xticklabels(['P','C','N','F'],fontdict={'fontsize':12})
+ax.set_yticklabels(['P','C','N','F'],fontdict={'fontsize':12})
+ax.yaxis.tick_right()
+ax.yaxis.set_label_position("right")
+
+plt.setp(ax.get_xticklabels(), ha="right")
+
+ic = -1
+for i in bra_cor.columns:
+	ic +=1
+	jc = 0
+	for j in bra_cor.index:
+		#print(i,j,ic,jc)
+		text = ax.text(jc, ic, round(bra_cor[i][j],2), ha="center", va="center", color="black",size=12)
+		jc +=1
+
+plt.colorbar(shrink=0.75,label='Correlation Index',orientation='horizontal')
+ax.set_title('Brazil')
+
+plt.show()
